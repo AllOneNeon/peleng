@@ -15,6 +15,9 @@ END;
 
 Вот полный исправленный код с функцией, которая решает проблему с Excel:
 
+
+Вот исправленный улучшенный код, который ищет по двум тегам phone и phonenumber:
+
 ```python
 import os
 import re
@@ -30,44 +33,26 @@ class PhoneExtractor:
         
     def extract_phones_optimized(self, file_path: str) -> Set[str]:
         """
-        Оптимизированная версия извлечения телефонов - читает файл построчно.
-        Эффективнее для больших файлов.
+        Извлекает телефонные номера из двух тегов: <phone> и <phonenumber>
         """
         phones = set()
-        in_phone_tag = False
-        phone_content = []
         
         try:
             with open(file_path, 'r', encoding='utf-8') as file:
-                for line in file:
-                    # Ищем начало тега
-                    start_match = re.search(r'<phone>', line, re.IGNORECASE)
-                    if start_match:
-                        in_phone_tag = True
-                        # Берем часть строки после <phone>
-                        content_start = start_match.end()
-                        phone_content.append(line[content_start:])
-                        continue
-                    
-                    # Если внутри тега, ищем конец тега
-                    if in_phone_tag:
-                        end_match = re.search(r'</phone>', line, re.IGNORECASE)
-                        if end_match:
-                            # Берем часть строки до </phone>
-                            content_end = end_match.start()
-                            phone_content.append(line[:content_end])
-                            
-                            # Собираем полный номер
-                            full_phone = ''.join(phone_content).strip()
-                            if full_phone:
-                                phones.add(full_phone)
-                            
-                            # Сбрасываем состояние
-                            in_phone_tag = False
-                            phone_content = []
-                        else:
-                            # Весь текст между тегами
-                            phone_content.append(line)
+                content = file.read()
+                
+                # Ищем номера в двух типах тегов
+                patterns = [
+                    r'<phone>(.*?)</phone>',
+                    r'<phonenumber>(.*?)</phonenumber>'
+                ]
+                
+                for pattern in patterns:
+                    matches = re.findall(pattern, content, re.DOTALL | re.IGNORECASE)
+                    for match in matches:
+                        phone = match.strip()
+                        if phone:
+                            phones.add(phone)
         
         except UnicodeDecodeError:
             return self._try_alternative_encodings(file_path)
@@ -85,13 +70,19 @@ class PhoneExtractor:
                 phones = set()
                 with open(file_path, 'r', encoding=encoding) as file:
                     content = file.read()
-                    pattern = r'<phone>(.*?)</phone>'
-                    matches = re.findall(pattern, content, re.DOTALL | re.IGNORECASE)
                     
-                    for match in matches:
-                        phone = match.strip()
-                        if phone:
-                            phones.add(phone)
+                    # Те же два паттерна для альтернативных кодировок
+                    patterns = [
+                        r'<phone>(.*?)</phone>',
+                        r'<phonenumber>(.*?)</phonenumber>'
+                    ]
+                    
+                    for pattern in patterns:
+                        matches = re.findall(pattern, content, re.DOTALL | re.IGNORECASE)
+                        for match in matches:
+                            phone = match.strip()
+                            if phone:
+                                phones.add(phone)
                 return phones
             except:
                 continue
@@ -102,13 +93,6 @@ class PhoneExtractor:
     def process_directory(self, directory: str, file_pattern: str = None) -> Tuple[Set[str], int]:
         """
         Обрабатывает все файлы в директории.
-        
-        Args:
-            directory: Путь к директории
-            file_pattern: Шаблон для фильтрации файлов (например, '*.log')
-            
-        Returns:
-            Кортеж (множество номеров, количество обработанных файлов)
         """
         all_phones = set()
         processed_count = 0
@@ -117,7 +101,7 @@ class PhoneExtractor:
             for filename in os.listdir(directory):
                 file_path = os.path.join(directory, filename)
                 
-                if os.pathisfile(file_path):
+                if os.path.isfile(file_path):
                     if file_pattern and not re.match(file_pattern.replace('*', '.*'), filename):
                         continue
                     
@@ -138,26 +122,6 @@ class PhoneExtractor:
         
         return all_phones, processed_count
 
-def save_phones_to_csv(phones: Set[str], output_file: str = 'phones.csv'):
-    """
-    Сохраняет телефонные номера в CSV файл.
-    Добавляет апостроф для корректного отображения в Excel.
-    """
-    try:
-        with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerow(['Phone Number'])
-            
-            sorted_phones = sorted(phones)
-            for phone in sorted_phones:
-                # Добавляем апостроф в начале, чтобы Excel воспринимал как текст
-                writer.writerow([f"'{phone}"])
-                
-        print(f"Успешно сохранено {len(phones)} уникальных номеров в {output_file}")
-        
-    except Exception as e:
-        print(f"Ошибка при сохранении в CSV: {e}")
-
 def main():
     parser = argparse.ArgumentParser(description='Извлечение телефонных номеров из лог-файлов')
     parser.add_argument('--directory', '-d', default='.', 
@@ -172,6 +136,7 @@ def main():
     print("=" * 50)
     print("Phone Number Extractor")
     print("=" * 50)
+    print("Поиск по тегам: <phone> и <phonenumber>")
     
     start_time = datetime.now()
     extractor = PhoneExtractor()
@@ -184,22 +149,30 @@ def main():
     # Обрабатываем файлы
     all_phones, file_count = extractor.process_directory(args.directory, args.pattern)
     
-    # Сохраняем результаты
+    # Сохраняем результаты (версия БЕЗ апострофа)
     if all_phones:
-        # ИСПРАВЛЕННАЯ ФУНКЦИЯ ВЫЗЫВАЕТСЯ ЗДЕСЬ
-        save_phones_to_csv(all_phones, args.output)
-        
-        end_time = datetime.now()
-        duration = (end_time - start_time).total_seconds()
-        
-        print("-" * 50)
-        print("РЕЗУЛЬТАТЫ:")
-        print(f"Обработано файлов: {file_count}")
-        print(f"Найдено уникальных номеров: {len(all_phones)}")
-        print(f"Время выполнения: {duration:.2f} секунд")
-        print(f"Результат сохранен в: {args.output}")
-        print("ПРИМЕЧАНИЕ: Номера сохранены с апострофом для корректного отображения в Excel")
-        
+        try:
+            with open(args.output, 'w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow(['Phone Number'])
+                
+                # Сортируем и сохраняем номера как есть
+                for phone in sorted(all_phones):
+                    writer.writerow([phone])
+            
+            end_time = datetime.now()
+            duration = (end_time - start_time).total_seconds()
+            
+            print("-" * 50)
+            print("РЕЗУЛЬТАТЫ:")
+            print(f"Обработано файлов: {file_count}")
+            print(f"Найдено уникальных номеров: {len(all_phones)}")
+            print(f"Время выполнения: {duration:.2f} секунд")
+            print(f"Результат сохранен в: {args.output}")
+            print("ПРИМЕЧАНИЕ: При открытии в Excel установите формат ячеек как 'Текст'")
+            
+        except Exception as e:
+            print(f"Ошибка при сохранении результатов: {e}")
     else:
         print("Телефонные номера не найдены.")
 
@@ -207,22 +180,17 @@ if __name__ == "__main__":
     main()
 ```
 
-Что было изменено:
+Что изменилось:
 
-1. Добавлена новая функция save_phones_to_csv в конце кода (перед main)
-2. В функции main заменил вызов старой функции сохранения на новую
-3. Добавлен апостроф ' перед каждым номером телефона
+1. Два тега вместо одного: phone и phonenumber
+2. Автоматическое удаление дубликатов: все номера сохраняются в set()
+3. Одна колонка в CSV: все номера из обоих тегов в одной колонке
+4. Без апострофов: номера сохраняются как есть
 
-Теперь в CSV файле номера будут записаны как:
-
-```
-'375295864412
-```
-
-Запуск команды:
+Запуск:
 
 ```bash
-python phone_extractor_advanced.py -d "D:\лог" -p "*.log" -o "phones.csv"
+python phone_extractor.py -d "D:\лог" -p "*.log" -o "phones.csv"
 ```
 
-Теперь в Excel номера будут отображаться правильно как текст, а не в научной нотации!
+Скрипт найдет все номера из обоих тегов и экспортирует уникальные значения в одну колонку CSV.
