@@ -10,13 +10,9 @@ BEGIN
       AND PlaceComp IN (1, 2, 3)
 END;
 
+Понял! Нужно искать номера между фразой !!!! Message phone: и запятой ,.
 
-Вот оптимальный и безопасный скрипт для извлечения уникальных телефонных номеров из лог-файлов:
-
-Вот полный исправленный код с функцией, которая решает проблему с Excel:
-
-
-Вот исправленный улучшенный код, который ищет по двум тегам phone и phonenumber:
+Вот переделанный скрипт:
 
 ```python
 import os
@@ -33,7 +29,7 @@ class PhoneExtractor:
         
     def extract_phones_optimized(self, file_path: str) -> Set[str]:
         """
-        Извлекает телефонные номера из двух тегов: <phone> и <phonenumber>
+        Извлекает телефонные номера между фразой '!!!! Message phone:' и запятой ','
         """
         phones = set()
         
@@ -41,18 +37,14 @@ class PhoneExtractor:
             with open(file_path, 'r', encoding='utf-8') as file:
                 content = file.read()
                 
-                # Ищем номера в двух типах тегов
-                patterns = [
-                    r'<phone>(.*?)</phone>',
-                    r'<phonenumber>(.*?)</phonenumber>'
-                ]
+                # Ищем номера между фразой '!!!! Message phone:' и запятой ','
+                pattern = r'!!!! Message phone:\s*([^,]+),'
                 
-                for pattern in patterns:
-                    matches = re.findall(pattern, content, re.DOTALL | re.IGNORECASE)
-                    for match in matches:
-                        phone = match.strip()
-                        if phone:
-                            phones.add(phone)
+                matches = re.findall(pattern, content, re.IGNORECASE)
+                for match in matches:
+                    phone = match.strip()
+                    if phone:
+                        phones.add(phone)
         
         except UnicodeDecodeError:
             return self._try_alternative_encodings(file_path)
@@ -71,18 +63,14 @@ class PhoneExtractor:
                 with open(file_path, 'r', encoding=encoding) as file:
                     content = file.read()
                     
-                    # Те же два паттерна для альтернативных кодировок
-                    patterns = [
-                        r'<phone>(.*?)</phone>',
-                        r'<phonenumber>(.*?)</phonenumber>'
-                    ]
+                    # Тот же паттерн для альтернативных кодировок
+                    pattern = r'!!!! Message phone:\s*([^,]+),'
                     
-                    for pattern in patterns:
-                        matches = re.findall(pattern, content, re.DOTALL | re.IGNORECASE)
-                        for match in matches:
-                            phone = match.strip()
-                            if phone:
-                                phones.add(phone)
+                    matches = re.findall(pattern, content, re.IGNORECASE)
+                    for match in matches:
+                        phone = match.strip()
+                        if phone:
+                            phones.add(phone)
                 return phones
             except:
                 continue
@@ -136,7 +124,7 @@ def main():
     print("=" * 50)
     print("Phone Number Extractor")
     print("=" * 50)
-    print("Поиск по тегам: <phone> и <phonenumber>")
+    print("Поиск по шаблону: '!!!! Message phone: [номер],'")
     
     start_time = datetime.now()
     extractor = PhoneExtractor()
@@ -149,7 +137,7 @@ def main():
     # Обрабатываем файлы
     all_phones, file_count = extractor.process_directory(args.directory, args.pattern)
     
-    # Сохраняем результаты (версия БЕЗ апострофа)
+    # Сохраняем результаты
     if all_phones:
         try:
             with open(args.output, 'w', newline='', encoding='utf-8') as csvfile:
@@ -182,10 +170,10 @@ if __name__ == "__main__":
 
 Что изменилось:
 
-1. Два тега вместо одного: phone и phonenumber
-2. Автоматическое удаление дубликатов: все номера сохраняются в set()
-3. Одна колонка в CSV: все номера из обоих тегов в одной колонке
-4. Без апострофов: номера сохраняются как есть
+· Теперь ищет по шаблону: !!!! Message phone: [номер],
+· Извлекает всё что между фразой и запятой
+· Удаляет пробелы вокруг номера
+· Все дубликаты автоматически удаляются через set()
 
 Запуск:
 
@@ -193,4 +181,4 @@ if __name__ == "__main__":
 python phone_extractor.py -d "D:\лог" -p "*.log" -o "phones.csv"
 ```
 
-Скрипт найдет все номера из обоих тегов и экспортирует уникальные значения в одну колонку CSV.
+Скрипт найдет все номера после фразы !!!! Message phone: и до запятой, удалит все дубли и экспортирует в CSV.
