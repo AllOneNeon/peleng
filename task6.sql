@@ -13,138 +13,7 @@ END;
 
 Вот оптимальный и безопасный скрипт для извлечения уникальных телефонных номеров из лог-файлов:
 
-```python
-import os
-import re
-import csv
-from typing import Set, List
-
-def extract_phones_from_file(file_path: str) -> Set[str]:
-    """
-    Извлекает уникальные телефонные номера из одного файла.
-    
-    Args:
-        file_path: Путь к файлу для обработки
-        
-    Returns:
-        Множество уникальных телефонных номеров
-    """
-    phones = set()
-    
-    try:
-        with open(file_path, 'r', encoding='utf-8') as file:
-            content = file.read()
-            
-            # Используем регулярное выражение для поиска тегов <phone>
-            # re.DOTALL позволяет .匹配任何字符, включая переносы строк
-            pattern = r'<phone>(.*?)</phone>'
-            matches = re.findall(pattern, content, re.DOTALL | re.IGNORECASE)
-            
-            for match in matches:
-                # Очищаем номер от лишних пробелов и переносов строк
-                phone = match.strip()
-                if phone:  # Проверяем, что номер не пустой
-                    phones.add(phone)
-                    
-    except UnicodeDecodeError:
-        # Если UTF-8 не сработал, пробуем другие кодировки
-        try:
-            with open(file_path, 'r', encoding='cp1251') as file:
-                content = file.read()
-                pattern = r'<phone>(.*?)</phone>'
-                matches = re.findall(pattern, content, re.DOTALL | re.IGNORECASE)
-                
-                for match in matches:
-                    phone = match.strip()
-                    if phone:
-                        phones.add(phone)
-        except Exception as e:
-            print(f"Ошибка при чтении файла {file_path}: {e}")
-            
-    except Exception as e:
-        print(f"Ошибка при обработке файла {file_path}: {e}")
-    
-    return phones
-
-def find_log_files(directory: str = '.') -> List[str]:
-    """
-    Находит все файлы логов в указанной директории.
-    
-    Args:
-        directory: Директория для поиска (по умолчанию текущая)
-        
-    Returns:
-        Список путей к файлам логов
-    """
-    log_files = []
-    
-    try:
-        for filename in os.listdir(directory):
-            file_path = os.path.join(directory, filename)
-            if os.path.isfile(file_path):
-                log_files.append(file_path)
-    except Exception as e:
-        print(f"Ошибка при поиске файлов в {directory}: {e}")
-    
-    return log_files
-
-def save_phones_to_csv(phones: Set[str], output_file: str = 'phones.csv'):
-    """
-    Сохраняет телефонные номера в CSV файл.
-    
-    Args:
-        phones: Множество телефонных номеров
-        output_file: Имя выходного CSV файла
-    """
-    try:
-        with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerow(['Phone Number'])  # Заголовок
-            
-            # Сортируем номера для удобства
-            sorted_phones = sorted(phones)
-            for phone in sorted_phones:
-                writer.writerow([phone])
-                
-        print(f"Успешно сохранено {len(phones)} уникальных номеров в {output_file}")
-        
-    except Exception as e:
-        print(f"Ошибка при сохранении в CSV: {e}")
-
-def main():
-    """Основная функция скрипта."""
-    print("Запуск обработки лог-файлов...")
-    
-    # Находим все файлы в текущей директории
-    log_files = find_log_files()
-    
-    if not log_files:
-        print("Файлы не найдены в текущей директории.")
-        return
-    
-    print(f"Найдено {len(log_files)} файлов для обработки.")
-    
-    # Собираем все уникальные номера
-    all_phones = set()
-    
-    for file_path in log_files:
-        print(f"Обработка: {os.path.basename(file_path)}")
-        file_phones = extract_phones_from_file(file_path)
-        all_phones.update(file_phones)
-        print(f"  Найдено номеров в файле: {len(file_phones)}")
-    
-    # Сохраняем результаты
-    if all_phones:
-        save_phones_to_csv(all_phones)
-        print(f"\nИтого найдено уникальных телефонных номеров: {len(all_phones)}")
-    else:
-        print("Телефонные номены не найдены.")
-
-if __name__ == "__main__":
-    main()
-```
-
-Также вот улучшенная версия с дополнительными возможностями:
+Вот полный исправленный код с функцией, которая решает проблему с Excel:
 
 ```python
 import os
@@ -248,7 +117,7 @@ class PhoneExtractor:
             for filename in os.listdir(directory):
                 file_path = os.path.join(directory, filename)
                 
-                if os.path.isfile(file_path):
+                if os.pathisfile(file_path):
                     if file_pattern and not re.match(file_pattern.replace('*', '.*'), filename):
                         continue
                     
@@ -268,6 +137,26 @@ class PhoneExtractor:
         self.total_phones = len(all_phones)
         
         return all_phones, processed_count
+
+def save_phones_to_csv(phones: Set[str], output_file: str = 'phones.csv'):
+    """
+    Сохраняет телефонные номера в CSV файл.
+    Добавляет апостроф для корректного отображения в Excel.
+    """
+    try:
+        with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(['Phone Number'])
+            
+            sorted_phones = sorted(phones)
+            for phone in sorted_phones:
+                # Добавляем апостроф в начале, чтобы Excel воспринимал как текст
+                writer.writerow([f"'{phone}"])
+                
+        print(f"Успешно сохранено {len(phones)} уникальных номеров в {output_file}")
+        
+    except Exception as e:
+        print(f"Ошибка при сохранении в CSV: {e}")
 
 def main():
     parser = argparse.ArgumentParser(description='Извлечение телефонных номеров из лог-файлов')
@@ -297,26 +186,20 @@ def main():
     
     # Сохраняем результаты
     if all_phones:
-        try:
-            with open(args.output, 'w', newline='', encoding='utf-8') as csvfile:
-                writer = csv.writer(csvfile)
-                writer.writerow(['Phone Number'])
-                
-                for phone in sorted(all_phones):
-                    writer.writerow([phone])
-            
-            end_time = datetime.now()
-            duration = (end_time - start_time).total_seconds()
-            
-            print("-" * 50)
-            print("РЕЗУЛЬТАТЫ:")
-            print(f"Обработано файлов: {file_count}")
-            print(f"Найдено уникальных номеров: {len(all_phones)}")
-            print(f"Время выполнения: {duration:.2f} секунд")
-            print(f"Результат сохранен в: {args.output}")
-            
-        except Exception as e:
-            print(f"Ошибка при сохранении результатов: {e}")
+        # ИСПРАВЛЕННАЯ ФУНКЦИЯ ВЫЗЫВАЕТСЯ ЗДЕСЬ
+        save_phones_to_csv(all_phones, args.output)
+        
+        end_time = datetime.now()
+        duration = (end_time - start_time).total_seconds()
+        
+        print("-" * 50)
+        print("РЕЗУЛЬТАТЫ:")
+        print(f"Обработано файлов: {file_count}")
+        print(f"Найдено уникальных номеров: {len(all_phones)}")
+        print(f"Время выполнения: {duration:.2f} секунд")
+        print(f"Результат сохранен в: {args.output}")
+        print("ПРИМЕЧАНИЕ: Номера сохранены с апострофом для корректного отображения в Excel")
+        
     else:
         print("Телефонные номера не найдены.")
 
@@ -324,27 +207,22 @@ if __name__ == "__main__":
     main()
 ```
 
-Особенности скрипта:
+Что было изменено:
 
-1. Безопасность: Обработка ошибок чтения файлов, поддержка разных кодировок
-2. Оптимальность:
-   · Использует множества для автоматического удаления дубликатов
-   · Построчное чтение для больших файлов
-   · Эффективные регулярные выражения
-3. Гибкость:
-   · Поддержка аргументов командной строки
-   · Фильтрация файлов по шаблону
-   · Работа с разными кодировками
-4. Отчетность: Детальный вывод процесса и результатов
+1. Добавлена новая функция save_phones_to_csv в конце кода (перед main)
+2. В функции main заменил вызов старой функции сохранения на новую
+3. Добавлен апостроф ' перед каждым номером телефона
 
-Использование:
+Теперь в CSV файле номера будут записаны как:
 
-```bash
-# Базовая версия
-python phone_extractor.py
-
-# Расширенная версия
-python phone_extractor_advanced.py --directory ./logs --pattern "*.log" --output results.csv
+```
+'375295864412
 ```
 
-Скрипт эффективно обработает 45+ файлов и гарантирует отсутствие дубликатов в результате.
+Запуск команды:
+
+```bash
+python phone_extractor_advanced.py -d "D:\лог" -p "*.log" -o "phones.csv"
+```
+
+Теперь в Excel номера будут отображаться правильно как текст, а не в научной нотации!
